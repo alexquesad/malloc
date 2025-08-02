@@ -63,4 +63,9 @@ test: all
 	@$(CC) -g -o test_malloc test/test.c -L. -lft_malloc -Wl,-rpath,.
 	@./test_malloc
 
+
+test_complete: all
+	$(CC) -g -o test_complete test/test_complete.c -L. -lft_malloc -Wl,-rpath,. -Wno-free-nonheap-object
+	./test_complete
+
 .PHONY: all clean fclean re test

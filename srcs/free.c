@@ -1,24 +1,5 @@
 #include "malloc.h"
 
-static void try_munmap_zone(t_zone *zone)
-{
-    t_zone **list;
-    
-    if (!zone_is_empty(zone))
-        return;
-    
-    // Determine which list this zone belongs to
-    if (zone->type == TINY_ZONE)
-        list = &g_malloc_data.tiny_zones;
-    else if (zone->type == SMALL_ZONE)
-        list = &g_malloc_data.small_zones;
-    else
-        list = &g_malloc_data.large_zones;
-    
-    remove_zone(list, zone);
-    munmap(zone, zone->size);
-}
-
 void free(void *ptr)
 {
     t_zone *zone;
@@ -31,7 +12,7 @@ void free(void *ptr)
     if (!zone)
         return;
     
-    block = (t_block *)((char *)ptr - BLOCK_HEADER_SIZE);
+    block = (t_block *)((char *)ptr - sizeof(t_block));
     
     // Check if already free
     if (IS_FREE(block->size))
@@ -45,7 +26,31 @@ void free(void *ptr)
     // Coalesce with adjacent free blocks
     coalesce_blocks(zone, block);
     
-    // For large zones, unmap immediately
-    if (zone->type == LARGE_ZONE)
-        try_munmap_zone(zone);
+    // For large zones, always unmap immediately
+    if (zone->type == LARGE_ZONE) {
+        remove_zone(&g_malloc_data.large_zones, zone);
+        munmap(zone, zone->size);
+        return;
+    }
+    
+    // For TINY and SMALL zones, only unmap if empty AND not the only zone
+    if (zone_is_empty(zone)) {
+        t_zone **zone_list;
+        t_zone *head;
+        
+        if (zone->type == TINY_ZONE) {
+            zone_list = &g_malloc_data.tiny_zones;
+            head = g_malloc_data.tiny_zones;
+        } else {  // SMALL_ZONE
+            zone_list = &g_malloc_data.small_zones;
+            head = g_malloc_data.small_zones;
+        }
+        
+        // Only unmap if it's not the last zone of its type
+        // This prevents thrashing (constantly creating/destroying zones)
+        if (head != zone || zone->next != NULL) {
+            remove_zone(zone_list, zone);
+            munmap(zone, zone->size);
+        }
+    }
 }

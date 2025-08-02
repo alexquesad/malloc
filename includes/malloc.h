@@ -16,8 +16,8 @@
 # define SMALL_MAX      4096
 
 // Zone sizes (must contain at least 100 allocations)
-# define TINY_ZONE_SIZE     (getpagesize() * 4)    // 16KB
-# define SMALL_ZONE_SIZE    (getpagesize() * 32)   // 128KB
+# define TINY_ZONE_SIZE     (getpagesize() * 16)    
+# define SMALL_ZONE_SIZE    (getpagesize() * 128)   
 
 // Alignment
 # define ALIGNMENT      16
@@ -67,7 +67,7 @@ void    show_alloc_mem(void);
 t_zone  *create_zone(size_t size, int type);
 void    *allocate_in_zone(t_zone *zone, size_t size);
 t_block *find_free_block(t_zone *zone, size_t size);
-void    split_block(t_block *block, size_t size);
+void    split_block(t_block *block, size_t size, char *zone_end);
 void    coalesce_blocks(t_zone *zone, t_block *block);
 int     zone_is_empty(t_zone *zone);
 void    remove_zone(t_zone **list, t_zone *zone);

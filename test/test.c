@@ -5,6 +5,8 @@
 
 int main()
 {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
     printf("=== Test 1: Basic allocations ===\n");
     char *str1 = malloc(42);
     char *str2 = malloc(1024);
@@ -41,5 +43,9 @@ int main()
     free(null_realloc);
     
     printf("\n=== Test completed successfully ===\n");
+   
     return 0;
 }
+
+
+

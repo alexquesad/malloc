@@ -15,31 +15,28 @@ void *allocate_in_zone(t_zone *zone, size_t size)
         block_size = GET_SIZE(block->size);
         
         // Safety check
-        if (block_size == 0 || (char *)block + BLOCK_HEADER_SIZE + block_size > zone_end)
+       if (block_size == 0 || (char *)block + BLOCK_HEADER_SIZE + block_size > zone_end)
             break;
             
         if (IS_FREE(block->size) && block_size >= size)
         {
-            // Remember the actual size we'll use
-            actual_size = size;
-            
-            // Split the block if necessary
-            split_block(block, size);
-            
-            // Check if split happened
+            // Check if we should split
             if (block_size > size + BLOCK_HEADER_SIZE + ALIGNMENT)
             {
-                // Split happened, use requested size
-                block->size = size;  // No FREE bit, just size
+                actual_size = ALIGN(size); 
+                split_block(block, actual_size, zone_end);  // Pass aligned size
             }
             else
             {
                 // No split, use entire block
-                block->size = block_size;  // No FREE bit, just size
                 actual_size = block_size;
+                // We decrement num of free blocks
+                zone->free_blocks--;
             }
             
-            zone->free_blocks--;
+            // Clear the FREE bit to mark as allocated
+            block->size = actual_size;
+            
             zone->free_size -= actual_size;
             return (char *)block + BLOCK_HEADER_SIZE;
         }
@@ -51,7 +48,7 @@ void *allocate_in_zone(t_zone *zone, size_t size)
     return NULL;
 }
 
-void split_block(t_block *block, size_t size)
+void split_block(t_block *block, size_t size, char *zone_end)
 {
     t_block *new_block;
     size_t block_size;
@@ -62,7 +59,7 @@ void split_block(t_block *block, size_t size)
     // Check if we have enough space to split
     if (block_size <= size + BLOCK_HEADER_SIZE + ALIGNMENT)
         return;
-        
+    
     remaining = block_size - size - BLOCK_HEADER_SIZE;
     
     // Create new free block
@@ -70,10 +67,16 @@ void split_block(t_block *block, size_t size)
     new_block->size = SET_FREE(remaining);
     new_block->prev_size = size;
     
+    // UPDATE THE ORIGINAL BLOCK'S SIZE --> NO FREE BIT!
+    block->size = size;
+    
     // Update next block's prev_size if it exists
     t_block *next = (t_block *)((char *)new_block + BLOCK_HEADER_SIZE + remaining);
-    if ((char *)next < (char *)block + BLOCK_HEADER_SIZE + block_size)
+    
+    // Check if next is within bounds
+    if ((char *)next < zone_end) {
         next->prev_size = remaining;
+    }
 }
 
 void coalesce_blocks(t_zone *zone, t_block *block)
@@ -110,7 +113,17 @@ void coalesce_blocks(t_zone *zone, t_block *block)
     block->size = SET_FREE(total_size);
     
     // Update next block's prev_size
+    // After coalescing, only update next block's prev_size if:
+    // 1. We're within the zone bounds
+    // 2. There's actually a valid block there (not just free space)
+
     next = (t_block *)((char *)block + BLOCK_HEADER_SIZE + total_size);
-    if ((char *)next < (char *)zone + zone->size)
-        next->prev_size = total_size;
+    if ((char *)next < (char *)zone + zone->size) {
+        // Check if this points to a valid block by examining the size
+        if ((char *)next + BLOCK_HEADER_SIZE <= (char *)zone + zone->size &&
+            GET_SIZE(next->size) > 0 &&
+                (char *)next + BLOCK_HEADER_SIZE + GET_SIZE(next->size) <= (char *)zone + zone->size) {
+                next->prev_size = total_size;
+            }
+        }
 }

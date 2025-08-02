@@ -73,7 +73,6 @@ t_zone *find_zone_for_ptr(void *ptr)
 {
     t_zone *zone;
     
-    // Check tiny zones
     zone = g_malloc_data.tiny_zones;
     while (zone)
     {
@@ -82,7 +81,6 @@ t_zone *find_zone_for_ptr(void *ptr)
         zone = zone->next;
     }
     
-    // Check small zones
     zone = g_malloc_data.small_zones;
     while (zone)
     {
@@ -91,7 +89,6 @@ t_zone *find_zone_for_ptr(void *ptr)
         zone = zone->next;
     }
     
-    // Check large zones
     zone = g_malloc_data.large_zones;
     while (zone)
     {
